@@ -16,8 +16,8 @@ let poses = [];
 let showDots = true;
 let showVideo = true;
 let doClassify = false;
-let globalThreshold = 0.5;
-let distThreshold = 30;
+let globalThreshold = 0.3;
+let distThreshold = 0.075;
 let resDict = {};
 
 var detSlider = document.getElementById("detSensitivity");
@@ -25,19 +25,18 @@ var distSlider = document.getElementById("distSensitivity");
 
 // Update the current slider value (each time you drag the slider handle)
 detSlider.oninput = function() {
-    globalThreshold = this.value / 100;
+    globalThreshold = 0.8 - this.value / 8;
 }
 
 distSlider.oninput = function() {
-    distThreshold = this.value;
+    distThreshold = 0.15 - this.value * 0.0015;
 }
 
 function setup() {
-    // Create a featureExtractor that can extract the already learned features from MobileNet
-    // featureExtractor = ml5.featureExtractor('MobileNet', feModelReady);
-    //noCanvas();
 
-    var canvas = createCanvas(640, 480);
+    let heightAndWidth = calculateWidthAndHeight(displayWidth);
+
+    var canvas = createCanvas(heightAndWidth.w, heightAndWidth.h);
     video = createCapture(VIDEO);
     video.size(width, height);
 
@@ -59,22 +58,15 @@ function setup() {
     // Create the UI buttons
     createButtons();
 
-    // Initialise results dictionary
-    // resDict['Focused'] = 0;
-    // resDict['Distracted'] = 0;
-    // resDict['AFK'] = 0;
-
 }
 
-// function feModelReady() {
-//     select('#festatus').html('FeatureExtractor Loaded')
-// }
-
 function poseModelReady() {
+    console.log('Model Loaded');
     // select('#posestatus').html('PoseNet Loaded')
 }
 
 function draw() {
+
     if (showVideo) {
         image(video, 0, 0, width, height);
         select('#videoContainer').show();
@@ -83,11 +75,15 @@ function draw() {
         select('#videoContainer').hide();
     }
 
-    // if (doClassify) {
-    //     classify();
-    // }
-
     checkForFace();
+}
+
+function calculateWidthAndHeight(windowWidth) {
+    width = min(640, windowWidth * 0.9)
+    return {
+        w: width,
+        h: int(width * 3 / 4)
+    };
 }
 
 function checkForFace() {
@@ -99,11 +95,13 @@ function checkForFace() {
         for (let i = 0; i < poses.length; i++) {
             let pose = poses[i].pose;
             distBetweenEyes = euclideanDistance(pose.leftEye, pose.rightEye)
+            distBetweenEyesProportion = distBetweenEyes / width;
+
 
             if ((pose.leftEar.confidence >= globalThreshold || pose.rightEar.confidence >= globalThreshold) &&
                 pose.leftEye.confidence >= globalThreshold && pose.rightEye.confidence >= globalThreshold && pose.nose.confidence > globalThreshold) {
 
-                if (distBetweenEyes < distThreshold) {
+                if (distBetweenEyesProportion < distThreshold) {
                     select('#facestatus').html('Face not detected / not looking at screen / too far away?');
                     select('#facestatus').style('color', '#990000');
                     pauseTimer();
@@ -140,43 +138,6 @@ function checkForFace() {
     }
 }
 
-// Add the current frame from the video to the classifier
-function addExample(label) {
-    // Get the features of the input video
-    const features = featureExtractor.infer(video);
-    // You can also pass in an optional endpoint, defaut to 'conv_preds'
-    // const features = featureExtractor.infer(video, 'conv_preds');
-    // You can list all the endpoints by calling the following function
-    // console.log('All endpoints: ', featureExtractor.mobilenet.endpoints)
-
-    // Add an example with a label to the classifier
-    knnClassifier.addExample(features, label);
-    updateCounts();
-}
-
-// Predict the current frame.
-// function classify() {
-//     // Get the total number of labels from knnClassifier
-//     const numLabels = knnClassifier.getNumLabels();
-//     if (numLabels <= 0) {
-//         console.error('There is no examples in any label');
-//         return;
-//     }
-//     // Get the features of the input video
-//     const features = featureExtractor.infer(video);
-
-//     // Use knnClassifier to classify which label do these features belong to
-//     // You can pass in a callback function `gotResults` to knnClassifier.classify function
-//     knnClassifier.classify(features, gotResults);
-//     // You can also pass in an optional K value, K default to 3
-//     // knnClassifier.classify(features, 3, gotResults);
-
-//     // You can also use the following async/await function to call knnClassifier.classify
-//     // Remember to add `async` before `function predictClass()`
-//     // const res = await knnClassifier.classify(features);
-//     // gotResults(null, res);
-// }
-
 // A util function to create UI buttons
 function createButtons() {
 
@@ -197,121 +158,7 @@ function createButtons() {
             showVideo = false;
         }
     });
-
-    // // // When the A button is pressed, add the current frame
-    // // from the video with a label of "Focused" to the classifier
-    // buttonA = select('#addClassFocused');
-    // buttonA.mousePressed(function() {
-    //     addExample('Focused');
-    // });
-
-    // // When the B button is pressed, add the current frame
-    // // from the video with a label of "Distracted" to the classifier
-    // buttonB = select('#addClassDistracted');
-    // buttonB.mousePressed(function() {
-    //     addExample('Distracted');
-    // });
-
-    // // Reset buttons
-    // resetBtnA = select('#resetFocused');
-    // resetBtnA.mousePressed(function() {
-    //     clearLabel('Focused');
-    // });
-
-    // resetBtnB = select('#resetDistracted');
-    // resetBtnB.mousePressed(function() {
-    //     clearLabel('Distracted');
-    // });
-
-    // // Predict button
-    // buttonPredict = select('#buttonPredict');
-    // buttonPredict.mousePressed(function() {
-    //     doClassify = true;
-    //     startTimer();
-    // });
-
-    // // Stop Predicting button
-    // buttonPause = select('#buttonPause');
-    // buttonPause.mousePressed(function() {
-    //     doClassify = false;
-    //     pauseTimer();
-    // });
-
-    // // Clear all classes button
-    // buttonClearAll = select('#clearAll');
-    // buttonClearAll.mousePressed(clearAllLabels);
-
-    // // Load saved classifier dataset
-    // buttonSetData = select('#load');
-    // buttonSetData.mousePressed(loadMyKNN);
-
-    // // Get classifier dataset
-    // buttonGetData = select('#save');
-    // buttonGetData.mousePressed(saveMyKNN);
 }
-
-// // Show the results
-// function gotResults(err, result) {
-//     // Display any error
-//     if (err) {
-//         console.error(err);
-//     }
-
-//     if (result.confidencesByLabel) {
-//         const confidences = result.confidencesByLabel;
-
-//         // result.label is the label that has the highest confidence
-//         if (result.label) {
-//             select('#result').html(result.label);
-//             select('#confidence').html(`${confidences[result.label] * 100} %`);
-//         }
-
-//         select('#confidenceFocused').html(`${confidences['Focused'] ? confidences['Focused'] * 100 : 0} %`);
-//         select('#confidenceDistracted').html(`${confidences['Distracted'] ? confidences['Distracted'] * 100 : 0} %`);
-
-//         resDict['Focused'] += confidences['Focused'];
-//         resDict['Distracted'] += confidences['Distracted'];
-//         resDict['Total'] = resDict['Focused'] + resDict['Distracted'];
-//         select('#progressBarFocused').attribute('style', `width:${ (resDict['Focused'] / resDict['Total']) * 100 }%`);
-//         select('#progressBarDistracted').attribute('style', `width:${ (resDict['Distracted'] / resDict['Total']) * 100 }%`);
-
-//         console.log('Focused: ' + (resDict['Focused'] / resDict['Total']) * 100);
-//         console.log('Distracted: ' + (resDict['Distracted'] / resDict['Total']) * 100);
-
-//     }
-
-//     //classify();
-// }
-
-// // Update the example count for each label	
-// function updateCounts() {
-//     const counts = knnClassifier.getCountByLabel();
-
-//     select('#exampleFocused').html(counts['Focused'] || 0);
-//     select('#exampleDistracted').html(counts['Distracted'] || 0);
-// }
-
-// // Clear the examples in one label
-// function clearLabel(label) {
-//     knnClassifier.clearLabel(label);
-//     updateCounts();
-// }
-
-// // Clear all the examples in all labels
-// function clearAllLabels() {
-//     knnClassifier.clearAllLabels();
-//     updateCounts();
-// }
-
-// // Save dataset as myKNNDataset.json
-// function saveMyKNN() {
-//     knnClassifier.save();
-// }
-
-// // Load dataset to the classifier
-// function loadMyKNN() {
-//     knnClassifier.load('./myKNN.json', updateCounts);
-// }
 
 function euclideanDistance(p, p2) {
     xdiff = Math.pow((p.x - p2.x), 2);
@@ -321,8 +168,6 @@ function euclideanDistance(p, p2) {
 
 // Timer based on https://medium.com/@olinations/an-accurate-vanilla-js-stopwatch-script-56ceb5c6f45b
 
-// var startTimerButton = document.querySelector('.startTimer');
-// var pauseTimerButton = document.querySelector('.pauseTimer');
 var timerDisplay = document.querySelector('.timer');
 var startTime;
 var updatedTime;
@@ -335,7 +180,7 @@ var running = 0;
 function startTimer() {
     if (!running) {
         startTime = new Date().getTime();
-        tInterval = setInterval(getShowTime, 1);
+        tInterval = setInterval(getShowTime, 1000);
         // change 1 to 1000 above to run script every second instead of every millisecond. one other change will be needed in the getShowTime() function below for this to work. see comment there.   
 
         paused = 0;
@@ -343,10 +188,6 @@ function startTimer() {
         timerDisplay.style.background = "#FF0000";
         timerDisplay.style.cursor = "auto";
         timerDisplay.style.color = "yellow";
-        // startTimerButton.classList.add('lighter');
-        // pauseTimerButton.classList.remove('lighter');
-        // startTimerButton.style.cursor = "auto";
-        // pauseTimerButton.style.cursor = "pointer";
     }
 }
 
@@ -361,10 +202,6 @@ function pauseTimer() {
         timerDisplay.style.background = "#A90000";
         timerDisplay.style.color = "#690000";
         timerDisplay.style.cursor = "pointer";
-        // startTimerButton.classList.remove('lighter');
-        // pauseTimerButton.classList.add('lighter');
-        // startTimerButton.style.cursor = "pointer";
-        // pauseTimerButton.style.cursor = "auto";
     } else {
         // if the timer was already paused, when they click pause again, start the timer again
         // Changed to NOT start timer again
@@ -382,10 +219,6 @@ function resetTimer() {
     timerDisplay.style.background = "#A90000";
     timerDisplay.style.color = "#fff";
     timerDisplay.style.cursor = "pointer";
-    // startTimerButton.classList.remove('lighter');
-    // pauseTimerButton.classList.remove('lighter');
-    // startTimerButton.style.cursor = "pointer";
-    // pauseTimerButton.style.cursor = "auto";
 }
 
 function getShowTime() {
@@ -399,10 +232,10 @@ function getShowTime() {
     var hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     var minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
     var seconds = Math.floor((difference % (1000 * 60)) / 1000);
-    var milliseconds = Math.floor((difference % (1000 * 60)) / 100);
+    // var milliseconds = Math.floor((difference % (1000 * 60)) / 100);
     hours = (hours < 10) ? "0" + hours : hours;
     minutes = (minutes < 10) ? "0" + minutes : minutes;
     seconds = (seconds < 10) ? "0" + seconds : seconds;
-    milliseconds = (milliseconds < 100) ? (milliseconds < 10) ? "00" + milliseconds : "0" + milliseconds : milliseconds;
-    timerDisplay.innerHTML = hours + ':' + minutes + ':' + seconds + ':' + milliseconds;
+    // milliseconds = (milliseconds < 100) ? (milliseconds < 10) ? "00" + milliseconds : "0" + milliseconds : milliseconds;
+    timerDisplay.innerHTML = hours + ':' + minutes + ':' + seconds // + ':' + milliseconds;
 }

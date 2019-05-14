@@ -58,6 +58,9 @@ function setup() {
     // Create the UI buttons
     createButtons();
 
+    // Use setInterval because standard p5.js draw() function get's throttled when tab is in background
+    setInterval(siDraw, 100);
+
 }
 
 function poseModelReady() {
@@ -65,7 +68,7 @@ function poseModelReady() {
     // select('#posestatus').html('PoseNet Loaded')
 }
 
-function draw() {
+function siDraw() {
 
     if (showVideo) {
         image(video, 0, 0, width, height);
@@ -78,6 +81,7 @@ function draw() {
     checkForFace();
 }
 
+
 function calculateWidthAndHeight(windowWidth) {
     width = min(640, windowWidth * 0.9)
     return {
@@ -87,6 +91,10 @@ function calculateWidthAndHeight(windowWidth) {
 }
 
 function checkForFace() {
+
+    var today = new Date();
+    // console.log('Checking for face at: ', today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds())
+    // console.log(poses);
 
     if (poses.length > 0) {
 
@@ -135,6 +143,11 @@ function checkForFace() {
             pauseTimer();
         }
 
+    } else {
+        select('#facestatus').html('Face not detected / not looking at screen / too far away?');
+        select('#facestatus').style('color', '#990000');
+        // console.log(poses)
+        pauseTimer();
     }
 }
 
